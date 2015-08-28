@@ -74,7 +74,7 @@
 (defun evilmi-javascript-jump (rlt NUM)
   (let (cur-line)
     (when rlt
-      (evilmi--simple-jump)
+      (evil-jump-item)
 
       (setq cur-line (buffer-substring-no-properties
                       (line-beginning-position)

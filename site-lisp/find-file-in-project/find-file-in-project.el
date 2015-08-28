@@ -4,8 +4,9 @@
 ;;   Phil Hagelberg, Doug Alcorn, and Will Farrington
 ;; Author: Phil Hagelberg, Doug Alcorn, and Will Farrington
 ;; Maintainer: Chen Bin <chenbin.sh@gmail.com>
-;; URL: https://github.com/technomancy/find-file-in-project
-;; Version: 3.5
+;; URL: http://www.emacswiki.org/cgi-bin/wiki/FindFileInProject
+;; Git: git://github.com/technomancy/find-file-in-project.git
+;; Version: 3.4
 ;; Created: 2008-03-18
 ;; Keywords: project, convenience
 ;; EmacsWiki: FindFileInProject
@@ -31,15 +32,9 @@
 
 ;;; Commentary:
 
-;; This program provides a couple methods for quickly finding any file
+;; This library provides a couple methods for quickly finding any file
 ;; in a given project.  It depends on GNU find.
-;;
-;; Usage,
-;;   - `M-x find-file-in-project` will start search immediately
-;;   - `M-x find-file-in-project-by-selected` use the your selected
-;;      region as keyword to search. Or you need provide the keyword
-;;      if no region selected.
-;;
+
 ;; A project is found by searching up the directory tree until a file
 ;; is found that matches `ffip-project-file'.  (".git" by default.)
 ;; You can set `ffip-project-root-function' to provide an alternate
@@ -64,27 +59,23 @@
 ;; For exmaple, the search string "dec fun pro" is transformed into
 ;; a regex "\\(dec\\).*\\(fun\\).*\\(pro\\)"
 ;;
-;; If Ivy.el is not available, ido will be used.
+;; If Ivy.el is not avaliable, ido will be used.
 
-;; GNU Find can be installed,
-;;   - through `brew' on OS X
+;; GNU Find is required. It can be installed,
+;;   - though `brew' on OS X
 ;;   - through `cygwin' on Windows.
-;;
+
 ;; This program works on Windows/Cygwin/Linux/Mac Emacs.
-;; See https://github.com/technomancy/find-file-in-project for advanced tips
 
 ;; Recommended binding: (global-set-key (kbd "C-x f") 'find-file-in-project)
 
+;;; TODO:
+
+;; Add compatibility with BSD find (PDI; I can't virtualize OS X)
+
 ;;; Code:
 
-(require 'cl-lib)
-(eval-when-compile
-  (require 'cl))
-
-(defvar ffip-filename-rules
-  '(ffip-filename-identity
-    ffip-filename-dashes-to-camelcase
-    ffip-filename-camelcase-to-dashes))
+(require 'cl)
 
 (defvar ffip-find-executable nil "Path of GNU find. If nil, we will find `find' path automatically")
 
@@ -93,71 +84,36 @@
 
 May be set using .dir-locals.el. Checks each entry if set to a list.")
 
-(defvar ffip-patterns nil
+(defvar ffip-patterns
+  '("*.*")
   "List of patterns to look for with `find-file-in-project'.")
 
 (defvar ffip-prune-patterns
-  '(;; VCS
-    ".git"
+  '(".git"
     ".svn"
     ".cvs"
     ".bzr"
     ".hg"
-    ;; project misc
-    "*.log"
-    "bin"
-    ;; Mac
+    "node_modules"
+    "bower_components"
     ".DS_Store"
-    ;; Ctags
-    "tags"
     "TAGS"
-    ;; Global/Cscope
     "GTAGS"
     "GPATH"
     "GRTAGS"
-    "cscope.files"
-    ;; html/javascript/css
-    "*min.js"
-    "*min.css"
-    "node_modules"
-    "bower_components"
-    ;; Images
-    "*.png"
-    "*.jpg"
-    "*.jpeg"
-    "*.gif"
-    "*.bmp"
-    "*.tiff"
-    ;; documents
-    "*.doc"
-    "*.docx"
-    "*.pdf"
-    ;; C/C++
-    "*.obj"
-    "*.o"
-    "*.a"
-    "*.dylib"
-    "*.lib"
-    "*.d"
-    "*.dll"
-    "*.exe"
-    ;; Java
-    ".metadata"
-    ".gradle"
+    "*flymake"
     "*.class"
     "*.war"
     "*.jar"
-    ;; Emacs/Vim
-    "*flymake"
     "#*#"
     ".#*"
     "*.swp"
     "*~"
+    "*.pyc"
     "*.elc"
-    ".cask"
-    ;; Python
-    "*.pyc")
-  "List of directory/file patterns to not descend into when listing files in `find-file-in-project'.")
+    "*min.js"
+    "*min.css")
+  "List of directory/file patterns to not decend into when listing files in `find-file-in-project'.")
 
 (defvar ffip-find-options ""
   "Extra options to pass to `find' when using `find-file-in-project'.
@@ -178,15 +134,13 @@ This overrides variable `ffip-project-root' when set.")
 (defvar ffip-full-paths t
   "If non-nil, show fully project-relative paths.")
 
-(defvar ffip-debug nil "Print debug information")
-
 (defun ffip-project-root ()
   "Return the root of the project."
   (let ((project-root (or ffip-project-root
                           (if (functionp ffip-project-root-function)
                               (funcall ffip-project-root-function)
                             (if (listp ffip-project-file)
-                                (cl-some (apply-partially 'locate-dominating-file
+                                (some (apply-partially 'locate-dominating-file
                                                        default-directory)
                                       ffip-project-file)
                               (locate-dominating-file default-directory
@@ -194,66 +148,6 @@ This overrides variable `ffip-project-root' when set.")
     (or project-root
         (progn (message "No project was defined for the current file.")
                nil))))
-
-(defun ffip-filename-identity (keyword)
-  " HelloWorld => [Hh]elloWorld "
-  (let (rlt
-        (c (elt keyword 0))
-        nc)
-    ;; a => 97, z => 122
-    (if (and (<= 97 c) (<= c 122)) (setq nc (- c 32)))
-    ;; A => 65, Z => 90
-    (if (and (<= 65 c) (<= c 90)) (setq nc (+ c 32)))
-    (setq rlt (replace-regexp-in-string "^[a-zA-Z]" (concat "[" (string c nc) "]") keyword t))
-    (if (and rlt ffip-debug) (message "ffip-filename-identity called. rlt=%s" rlt))
-    rlt))
-
-(defun ffip-filename-camelcase-to-dashes (keyword)
-  " HelloWorld => hello-world"
-  (let (rlt
-        (old-flag case-fold-search))
-    (setq case-fold-search nil)
-    ;; case sensitive replace
-    (setq rlt (downcase (replace-regexp-in-string "\\([a-z]\\)\\([A-Z]\\)" "\\1-\\2" keyword)))
-    (setq case-fold-search old-flag)
-
-    (if (string= rlt (downcase keyword)) (setq rlt nil))
-
-    (if (and rlt ffip-debug)
-        (message "ffip-filename-camelcase-to-dashes called. rlt=%s" rlt))
-    rlt))
-
-(defun ffip-filename-dashes-to-camelcase (keyword)
-  " hello-world => [Hh]elloWorld "
-  (let (rlt)
-    (setq rlt (mapconcat '(lambda (s) (capitalize s)) (split-string keyword "-") ""))
-
-    (if (string= rlt (capitalize keyword)) (setq rlt nil)
-      (setq rlt (ffip-filename-identity rlt)))
-
-    (if (and rlt ffip-debug)
-        (message "ffip-filename-dashes-to-camelcase called. rlt=%s" rlt))
-
-    rlt))
-
-(defun ffip--create-filename-pattern-for-gnufind (keyword)
-  (let ((rlt ""))
-    (cond
-     ((not keyword)
-      (setq rlt ""))
-     ((not ffip-filename-rules)
-      (setq rlt (concat "-name \"*" keyword "*\"" )))
-     (t
-      (dolist (f ffip-filename-rules rlt)
-        (let (tmp)
-          (setq tmp (funcall f keyword))
-          (when tmp
-            (setq rlt (concat rlt (unless (string= rlt "") " -o") " -name \"*" tmp "*\"")))))
-      (unless (string= "" rlt)
-        (setq rlt (concat "\\(" rlt " \\)")))
-      ))
-    (if ffip-debug (message "ffip--create-filename-pattern-for-gnufind called. rlt=%s" rlt))
-    rlt))
 
 (defun ffip--guess-gnu-find ()
   (let ((rlt "find"))
@@ -273,14 +167,12 @@ This overrides variable `ffip-project-root' when set.")
           (setq rlt "e:\\\\cygwin\\\\bin\\\\find"))))
     rlt))
 
-(defun ffip--join-patterns (patterns)
+(defun ffip-join-patterns ()
   "Turn `ffip-patterns' into a string that `find' can use."
-  (if ffip-patterns
-      (format "\\( %s \\)" (mapconcat (lambda (pat) (format "-name \"%s\"" pat))
-                         patterns " -or "))
-    ""))
+  (mapconcat (lambda (pat) (format "-name \"%s\"" pat))
+             ffip-patterns " -or "))
 
-(defun ffip--prune-patterns ()
+(defun ffip-prune-patterns ()
   "Turn `ffip-prune-patterns' into a string that `find' can use."
   (mapconcat (lambda (pat) (format "-name \"%s\"" pat))
              ffip-prune-patterns " -or "))
@@ -294,18 +186,15 @@ This overrides variable `ffip-project-root' when set.")
 (defun ffip-completing-read (prompt collection)
   (let (rlt)
     (cond
-     ( (= 1 (length collection))
-       ;; open file directly
-       (setq rlt (car collection)))
      ((fboundp 'ivy-read)
-      (setq rlt (ivy-read prompt collection)))
+      (setq rlt (ivy-read prompt files)))
      ((and (boundp 'ido-mode) ido-mode)
-      (setq rlt (ido-completing-read prompt collection)))
+      (setq rlt (ido-completing-read prompt files)))
      (t
-      (setq rlt (completing-read prompt collection))))
+      (setq rlt (completing-read prompt files))))
     rlt))
 
-(defun ffip-project-files (keyword NUM)
+(defun ffip-project-files ()
   "Return an alist of all filenames in the project and their path.
 
 Files with duplicate filenames are suffixed with the name of the
@@ -318,16 +207,12 @@ directory they are found in so that they are unique."
                                     (error "No project root found")))))
     (cd (file-name-as-directory root))
     ;; make the prune pattern more general
-    (setq cmd (format "%s . \\( %s \\) -prune -o -type f %s %s %s %s -print %s"
+    (setq cmd (format "%s . \\( %s \\) -prune -o -type f \\( %s \\) %s -print %s"
                       (if ffip-find-executable ffip-find-executable (ffip--guess-gnu-find))
-                      (ffip--prune-patterns)
-                      (ffip--join-patterns ffip-patterns)
-                      (ffip--create-filename-pattern-for-gnufind keyword)
-                      (if (and NUM (> NUM 0)) (format "-mtime -%d" NUM) "")
-                      ffip-find-options
-                      (ffip-limit-find-results)))
+                      (ffip-prune-patterns) (ffip-join-patterns)
+                      ffip-find-options (ffip-limit-find-results)))
 
-    (if ffip-debug (message "run cmd at %s: %s" default-directory cmd))
+    ;; (message "run cmd at %s: %s" default-directory cmd)
     (setq rlt
           (mapcar (lambda (file)
                     (if ffip-full-paths
@@ -338,61 +223,27 @@ directory they are found in so that they are unique."
                         (add-to-list 'file-alist file-cons)
                         file-cons)))
                   ;; #15 improving handling of directories containing space
-                  (split-string (shell-command-to-string cmd) "[\r\n]+" t)))
+                  (split-string (shell-command-to-string cmd) "[\r\n]+")))
 
     ;; restore the original default-directory
     (cd old-default-directory)
     rlt))
 
-(defun ffip-find-files (keyword NUM)
-  (let* ((project-files (ffip-project-files keyword NUM))
-         (files (mapcar 'car project-files))
-         file root)
-    (cond
-     ((and files (> (length files) 0))
-      (setq root (file-name-nondirectory (directory-file-name (or ffip-project-root (ffip-project-root)))))
-      (setq file (ffip-completing-read (format "Find file in %s/: " root)  files))
-      (find-file (cdr (assoc file project-files))))
-     (t (message "No match file exist!")))
-    ))
-
 ;;;###autoload
-(defun ffip-current-full-filename-match-pattern-p (REGEX)
-  "Is current full file name (including directory) match the REGEX?"
-  (let ((dir (if (buffer-file-name) (buffer-file-name) "")))
-    (string-match-p REGEX dir)))
-
-;;;###autoload
-(defun find-file-in-project (&optional NUM)
+(defun find-file-in-project ()
   "Prompt with a completing list of all files in the project to find one.
-If NUM is given, only files modfied NUM days before will be selected.
 
 The project's scope is defined as the first directory containing
-a `ffip-project-file' (It's value is \".git\" by default.
+an `.emacs-project' file.  You can override this by locally
+setting the variable `ffip-project-root'."
+  (interactive)
+  (let* ((project-files (ffip-project-files))
+         (files (mapcar 'car project-files))
+         file root)
+    (setq root (file-name-nondirectory (directory-file-name (or ffip-project-root (ffip-project-root)))))
 
-You can override this by setting the variable `ffip-project-root'."
-
-  (interactive "P")
-  (ffip-find-files nil NUM))
-
-;;;###autoload
-(defun ffip-get-project-root-directory ()
-  "Get the full path of project root directory"
-  (expand-file-name (or ffip-project-root
-                        (ffip-project-root))))
-
-;;;###autoload
-(defun find-file-in-project-by-selected (&optional NUM)
-  "Similar to find-file-in-project.
-But use string from selected region to search files in the project.
-If no region is selected, you need provide one.
-If NUM is given, only files modfied NUM days before will be selected.
-"
-  (interactive "P")
-  (let ((keyword (if (region-active-p)
-                     (buffer-substring-no-properties (region-beginning) (region-end))
-                   (read-string "Enter keyword:"))))
-    (ffip-find-files keyword NUM)))
+    (setq file (ffip-completing-read (format "Find file in %s/: " root)  files))
+    (find-file (cdr (assoc file project-files)))))
 
 ;;;###autoload
 (defalias 'ffip 'find-file-in-project)

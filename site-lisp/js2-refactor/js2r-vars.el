@@ -1,27 +1,3 @@
-;;; js2r-vars.el --- Variable declaration manipulation functions for js2-refactor
-
-;; Copyright (C) 2012-2014 Magnar Sveen
-;; Copyright (C) 2015 Magnar Sveen and Nicolas Petton
-
-;; Author: Magnar Sveen <magnars@gmail.com>,
-;;         Nicolas Petton <nicolas@petton.fr>
-;; Keywords: conveniences
-
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
-;; (at your option) any later version.
-
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-;;; Code:
-
 (require 'multiple-cursors-core)
 (require 'dash)
 
@@ -167,16 +143,14 @@
     (let* ((current-node (js2r--local-name-node-at-point))
            (definer (js2r--var-defining-node current-node))
            (definer-start (js2-node-abs-pos definer))
-           (var-init (js2-node-parent definer))
+           (var-init-node (js2-node-parent definer))
            (initializer (js2-var-init-node-initializer
-                         var-init)))
+                         var-init-node)))
       (unless initializer
         (error "Var is not initialized when defined."))
       (let* ((var-len (js2-node-len current-node))
              (init-beg (js2-node-abs-pos initializer))
              (init-end (+ init-beg (js2-node-len initializer)))
-             (var-init-beg (copy-marker (js2-node-abs-pos var-init)))
-             (var-init-end (copy-marker (+ var-init-beg (js2-node-len var-init))))
              (contents (buffer-substring init-beg init-end)))
         (mapc (lambda (beg)
                 (when (not (= beg definer-start))
@@ -184,26 +158,23 @@
                   (delete-char var-len)
                   (insert contents)))
               (js2r--local-var-positions current-node))
-        (js2r--delete-var-init var-init-beg var-init-end)))))
+        (js2r--delete-var-init-node var-init-node)
+        ))))
 
 
 (defun js2r--was-single-var ()
   (or (string= "var ;" (current-line-contents))
-      (string= "const ;" (current-line-contents))
-      (string= "let ;" (current-line-contents))
       (string= "," (current-line-contents))))
 
 (defun js2r--was-starting-var ()
-  (or (looking-back "var ")
-      (looking-back "const ")
-      (looking-back "let ")))
+  (looking-back "var "))
 
 (defun js2r--was-ending-var ()
   (looking-at ";"))
 
-(defun js2r--delete-var-init (beg end)
-  (goto-char beg)
-  (delete-char (- end beg))
+(defun js2r--delete-var-init-node (node)
+  (goto-char (js2-node-abs-pos node))
+  (delete-char (js2-node-len node))
   (cond
    ((js2r--was-single-var)
     (delete-region (point-at-bol) (point-at-eol))
@@ -222,7 +193,8 @@
       (delete-char 1))
     (delete-char -1))
 
-   (t (delete-char 2))))
+   (t (delete-char 2)
+      )))
 
 ;; two cases
 ;;   - it's the only var -> remove the line
@@ -232,7 +204,7 @@
 ;; Extract variable
 
 (defun js2r--start-of-parent-stmt ()
-  (js2-node-abs-pos (js2r--closest-stmt-node)))
+  (js2-node-abs-pos (js2-node-parent-stmt (js2-node-at-point))))
 
 (defun js2r--object-literal-key-behind (pos)
   (save-excursion
@@ -252,7 +224,7 @@
   (js2r--guard)
   (if (use-region-p)
       (js2r--extract-var-between (region-beginning) (region-end))
-    (let ((node (js2r--closest-extractable-node)))
+    (let ((node (js2r--closest 'js2r--expression-p)))
       (js2r--extract-var-between (js2-node-abs-pos node)
                                  (js2-node-abs-end node)))))
 
@@ -261,12 +233,12 @@
 (defun js2r--extract-var-between (beg end)
   (interactive "r")
   (unless (js2r--single-complete-expression-between-p beg end)
-    (error "Can only extract single, complete expressions to var"))
+    (error "Can only extract single, complete expressions to var."))
 
   (let ((deactivate-mark nil)
         (expression (buffer-substring beg end))
         (orig-var-end (make-marker))
-        (new-var-end (make-marker))
+        new-var-end
         (name (or (js2r--object-literal-key-behind beg) "name")))
 
     (delete-region beg end)
@@ -275,7 +247,7 @@
 
     (goto-char (js2r--start-of-parent-stmt))
     (insert "var " name)
-    (set-marker new-var-end (point))
+    (setq new-var-end (point))
     (insert " = " expression ";")
     (when (or (js2r--line-above-is-blank)
               (string-match-p "^function " expression))
@@ -288,13 +260,12 @@
       (mc/create-fake-cursor-at-point))
     (goto-char orig-var-end)
     (set-mark (- (point) (length name)))
-    (set-marker orig-var-end nil)
-    (set-marker new-var-end nil))
+    (set-marker orig-var-end nil))
   (mc/maybe-multiple-cursors-mode))
 
+;; Split var declaration
+
 (defun js2r-split-var-declaration ()
-  "Split a variable declaration into separate variable
-declarations for each declared variable."
   (interactive)
   (js2r--guard)
   (save-excursion
@@ -316,4 +287,3 @@ declarations for each declared variable."
         (indent-region (point) end)))))
 
 (provide 'js2r-vars)
-;;; js2-vars.el ends here

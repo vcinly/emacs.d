@@ -1,6 +1,6 @@
 ;;; helm-semantic.el --- Helm interface for Semantic -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012 ~ 2015 Daniel Hackney <dan@haxney.org>
+;; Copyright (C) 2012 ~ 2014 Daniel Hackney <dan@haxney.org>
 ;; Author: Daniel Hackney <dan@haxney.org>
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -37,19 +37,12 @@
   :group 'helm-semantic
   :type  'boolean)
 
-(defcustom helm-semantic-display-style 'semantic-format-tag-summarize
-  "Function to present a semantic tag."
-  :group 'helm-semantic
-  :type '(radio
-          (const :tag "Default" semantic-format-tag-summarize)
-          (const :tag "Prototype" semantic-format-tag-prototype)))
-
 ;;; keymap
 (defvar helm-semantic-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map helm-map)
     (define-key map (kbd "C-c ?") 'helm-semantic-help)
-    (when helm-semantic-lynx-style-map
+    (when helm-imenu-lynx-style-map
       (define-key map (kbd "<left>")  'helm-maybe-exit-minibuffer)
       (define-key map (kbd "<right>") 'helm-execute-persistent-action))
     (delq nil map)))
@@ -70,23 +63,22 @@
                (setq class nil))
              (insert
               (if (and class (not type-p))
-                  (format "%s%s(%s) "
+                  (format "%s%sClass(%s) "
                           spaces (if (< depth 2) "" "├►") class)
                 spaces)
               ;; Save the tag for later
-              (propertize (funcall helm-semantic-display-style tag nil t)
+              (propertize (semantic-format-tag-summarize tag nil t)
                           'semantic-tag tag)
               "\n")
              (and type-p (setq class (car tag)))
              ;; Recurse to children
-             (unless (eq cur-type 'function)
-               (helm-semantic--fetch-candidates
-                (semantic-tag-components tag) (1+ depth) class))))
+             (helm-semantic--fetch-candidates
+              (semantic-tag-components tag) (1+ depth) class)))
 
           ;; Don't do anything with packages or includes for now
           ((package include)
            (insert
-            (propertize (funcall helm-semantic-display-style tag nil t)
+            (propertize (semantic-format-tag-summarize tag nil t)
                         'semantic-tag tag)
             "\n")
            )

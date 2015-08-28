@@ -3,6 +3,25 @@
 
 (recentf-mode 1)
 
+(define-key isearch-mode-map (kbd "C-o") 'isearch-occur)
+
+(setq-default buffers-menu-max-size 30
+              case-fold-search t
+              compilation-scroll-output t
+              ediff-split-window-function 'split-window-horizontally
+              ediff-window-setup-function 'ediff-setup-windows-plain
+              grep-highlight-matches t
+              grep-scroll-output t
+              indent-tabs-mode nil
+              line-spacing 0.2
+              mouse-yank-at-point t
+              set-mark-command-repeat-pop t
+              tooltip-delay 1.5
+              truncate-lines nil
+              truncate-partial-width-windows nil
+              ;; no annoying beep on errors
+              visible-bell t)
+
 ;; use my own bmk if it exists
 (if (file-exists-p (file-truename "~/.emacs.bmk"))
     (setq bookmark-default-file (file-truename "~/.emacs.bmk")))
@@ -23,21 +42,21 @@
 (put 'narrow-to-page 'disabled nil)
 (put 'narrow-to-defun 'disabled nil)
 
-;; {{ tramp setup
 ;; @see http://www.quora.com/Whats-the-best-way-to-edit-remote-files-from-Emacs
 (setq tramp-default-method "ssh")
 (setq tramp-auto-save-directory "~/.backups/tramp/")
 (setq tramp-chunksize 8192)
-;; @see https://github.com/syl20bnr/spacemacs/issues/1921
-(setq tramp-ssh-controlmaster-options
-      "-o ControlMaster=auto -o ControlPath='tramp.%%C' -o ControlPersist=no")
-;; }}
 
 ;; But don't show trailing whitespace in SQLi, inf-ruby etc.
 (add-hook 'comint-mode-hook
           (lambda () (setq show-trailing-whitespace nil)))
 
 (autoload 'sos "sos" "search stackoverflow" t)
+
+;;----------------------------------------------------------------------------
+;; Show matching parens
+;;----------------------------------------------------------------------------
+(paren-activate)     ; activating mic-paren
 
 ;;----------------------------------------------------------------------------
 ;; Fix per-window memory of buffer point positions
@@ -233,6 +252,7 @@ grab matched string, cssize them, and insert into kill ring"
                   "elpa"))
        (add-to-list 'grep-find-ignored-directories v))
      ))
+(add-hook 'grep-mode-hook (lambda () (toggle-truncate-lines 1)))
 
 ;; {{ support MY packages which are not included in melpa
 (autoload 'wxhelp-browse-class-or-api "wxwidgets-help" "" t)
@@ -293,57 +313,31 @@ The full path into relative path insert it as a local file link in org-mode"
       (insert (format "[[file:%s]]" str))
       )))
 
-(defun font-file-to-base64 (file)
-  (let ((str "")
-        (file-base (file-name-sans-extension file))
-        (file-ext (file-name-extension file)))
-
-    (if (file-exists-p file)
-        (with-temp-buffer
-          (shell-command (concat "cat " file "|base64") 1)
-          (setq str (replace-regexp-in-string "\n" "" (buffer-string)))))
-    str))
-
-(defun convert-binary-to-css-code ()
-  "Convert binary (image, font...) into css"
+(defun convert-image-to-css-code ()
+  "convert a image into css code (base64 encode)"
   (interactive)
   (let (str
         rlt
-        (file (read-file-name "The path of image:"))
-        file-ext
-        file-base)
-
-    (setq file-ext (file-name-extension file))
-    (setq file-base (file-name-sans-extension file))
-    (cond
-     ((member file-ext '("ttf" "eot" "woff"))
-      (setq rlt (concat "@font-face {\n"
-                        "  font-family: familarName;\n"
-                        "  src: url('data:font/eot;base64," (font-file-to-base64 (concat file-base ".eot")) "') format('embedded-opentype'),\n"
-                        "       url('data:application/x-font-woff;base64," (font-file-to-base64 (concat file-base ".woff")) "') format('woff'),\n"
-                        "       url('data:font/ttf;base64," (font-file-to-base64 (concat file-base ".ttf")) "') format('truetype');"
-                        "\n}"
-                        )))
-     (t
-      (with-temp-buffer
-        (shell-command (concat "cat " file "|base64") 1)
-        (setq str (replace-regexp-in-string "\n" "" (buffer-string))))
-      (setq rlt (concat "background:url(\"data:image/"
-                          file-ext
-                          ";base64,"
-                          str
-                          "\") no-repeat 0 0;"
-                          ))))
+        (file (read-file-name "The path of image:")))
+    (with-temp-buffer
+      (shell-command (concat "cat " file "|base64") 1)
+      (setq str (replace-regexp-in-string "\n" "" (buffer-string)))
+      )
+    (setq rlt (concat "background:url(\"data:image/"
+                      (car (last (split-string file "\\.")))
+                      ";base64,"
+                      str
+                      "\") no-repeat 0 0;"
+                      ))
     (kill-new rlt)
     (copy-yank-str rlt)
-    (message "css code => clipboard & yank ring")))
-
-
+    (message "css code => clipboard & yank ring")
+    ))
 
 (defun current-font-face ()
   "get the font face under cursor"
   (interactive)
-  (let ((rlt (format "%S" (get-text-property (point) 'face))))
+  (let ((rlt (format "%S" (get-text-property (- (point) 1) 'face))))
     (kill-new rlt)
     (copy-yank-str rlt)
     (message "%s => clipboard & yank ring" rlt)
@@ -418,6 +412,10 @@ version control automatically"
         (when (vc-backend filename)
           (vc-register)
           )))))
+
+;; @see http://www.emacswiki.org/emacs/SavePlace
+(require 'saveplace)
+(setq-default save-place t)
 
 (defun toggle-env-http-proxy ()
   "set/unset the environment variable http_proxy which w3m uses"
@@ -506,6 +504,10 @@ Current position is preserved."
 ;; so it should not be turned off by default
 ;; (blink-cursor-mode -1)
 
+
+;; https://github.com/browse-kill-ring/browse-kill-ring
+(require 'browse-kill-ring)
+(browse-kill-ring-default-keybindings)
 
 (defun create-scratch-buffer nil
   "create a new scratch buffer to work in. (could be *scratch* - *scratchX*)"

@@ -1,6 +1,5 @@
 ;; Use the system clipboard
-(setq x-select-enable-clipboard t
-      x-select-enable-primary t)
+(setq x-select-enable-clipboard t)
 
 ;; kill-ring and clipboard are same. It's annoying!
 ;; (setq save-interprogram-paste-before-kill t)

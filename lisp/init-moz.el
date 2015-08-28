@@ -14,14 +14,10 @@
     (comint-send-string (inferior-moz-process) cmd)
     ))
 
-(defvar moz-reload-browser-when-save nil
-  "Reload the browser when save")
-
 (defun moz-after-save ()
   (interactive)
-  (if (memq major-mode '(web-mode html-mode nxml-mode nxhml-mode php-mode))
-      (if moz-reload-browser-when-save
-          (moz-reload-browser))))
+  (when (memq major-mode '(web-mode html-mode nxml-mode nxhml-mode php-mode))
+    (moz-reload-browser)))
 ;; }}
 
 (defun moz-custom-setup ()

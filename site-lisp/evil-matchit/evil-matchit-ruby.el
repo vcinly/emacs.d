@@ -33,9 +33,8 @@
 
 (defvar evilmi-ruby-extract-keyword-howtos
   '(("^[ \t]*\\([a-z]+\\)\\( .*\\| *\\)$" 1)
-    ("^.* \\(do\\) |[a-z0-9A-Z_, ]+|$" 1)
+    ("^.* \\(do\\) |[a-z0-9A-Z,|]+|$" 1)
     ("^.* \\(do\\) *$" 1)
-    ("^.* \\(end\\)\\..*$" 1)
     ))
 
 (defvar evilmi-ruby-match-tags

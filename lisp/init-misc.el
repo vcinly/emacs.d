@@ -8,103 +8,31 @@
 ;; C#
 (add-to-list 'auto-mode-alist '("\\.cs$" . csharp-mode))
 
-;; {{ isearch
-;; Use regex to search by default
-(global-set-key (kbd "C-s") 'isearch-forward-regexp)
-(global-set-key (kbd "C-r") 'isearch-backward-regexp)
-(global-set-key (kbd "C-M-s") 'isearch-forward)
-(global-set-key (kbd "C-M-r") 'isearch-backward)
-(define-key isearch-mode-map (kbd "C-o") 'isearch-occur)
-;; }}
-
-(setq-default buffers-menu-max-size 30
-              case-fold-search t
-              compilation-scroll-output t
-              ediff-split-window-function 'split-window-horizontally
-              ediff-window-setup-function 'ediff-setup-windows-plain
-              save-interprogram-paste-before-kill t
-              grep-highlight-matches t
-              grep-scroll-output t
-              indent-tabs-mode nil
-              line-spacing 0.2
-              mouse-yank-at-point t
-              set-mark-command-repeat-pop t
-              tooltip-delay 1.5
-              ;; void problems with crontabs, etc.
-              ;; require-final-newline t ; bad idea, could accidently edit others' code
-              truncate-lines nil
-              truncate-partial-width-windows nil
-              ;; visible-bell has some issue
-              ;; @see https://github.com/redguardtoo/mastering-emacs-in-one-year-guide/issues/9#issuecomment-97848938
-              visible-bell nil)
-
-;; @see http://www.emacswiki.org/emacs/SavePlace
-(require 'saveplace)
-(setq-default save-place t)
-
-
 ;; {{ find-file-in-project (ffip)
 (autoload 'ivy-read "ivy")
-(autoload 'find-file-in-project "find-file-in-project" "" t)
-(autoload 'find-file-in-project-by-selected "find-file-in-project" "" t)
-(autoload 'ffip-get-project-root-directory "find-file-in-project" "" t)
-
-(defun neotree-project-dir ()
-  "Open NeoTree using the git root."
-  (interactive)
-  (let ((project-dir (ffip-get-project-root-directory))
-        (file-name (buffer-file-name)))
-    (if project-dir
-        (progn
-          (neotree-dir project-dir)
-          (neotree-find file-name))
-      (message "Could not find git project root."))))
-
-(defun my-vc-git-grep ()
-  (interactive)
-  (let ((re (if (region-active-p)
-                (buffer-substring-no-properties (region-beginning) (region-end))
-              (read-string "Grep pattern: ")))
-        (root (ffip-get-project-root-directory)))
-    (if root (vc-git-grep re "*" root))
-    ))
-;; }}
-
-;; {{ groovy-mode
- (add-to-list 'auto-mode-alist '("\\.groovy\\'" . groovy-mode))
- (add-to-list 'auto-mode-alist '("\\.gradle\\'" . groovy-mode))
-;; }}
-
-;; {{ https://github.com/browse-kill-ring/browse-kill-ring
-(require 'browse-kill-ring)
-;; no duplicates
-(setq browse-kill-ring-display-duplicates nil)
-;; preview is annoying
-(setq browse-kill-ring-show-preview nil)
-(browse-kill-ring-default-keybindings)
-;; hotkeys:
-;; n/p => next/previous
-;; s/r => search
-;; l => filter with regex
-;; g => update/refresh
-;; }}
-
-;; {{ gradle
-(defun my-run-gradle-in-shell (cmd)
-  (interactive "sEnter a string:")
-  (let ((old-dir default-directory)
-        (root-dir (locate-dominating-file default-directory
-                                          "build.gradle")))
-    (message "root-dir=%s cmd=%s" root-dir cmd)
-    (when root-dir
-      (cd root-dir)
-      (shell-command (concat "gradle " cmd "&"))
-      (cd old-dir))))
-;; }}
-
-;; {{ crontab
-;; in shell "EDITOR='emacs -nw' crontab -e" to edit cron job
-(add-to-list 'auto-mode-alist '("crontab.*\\'" . crontab-mode))
+(setq-default ffip-patterns '("*.*")) ;; blackbox strategy
+(setq-default ffip-prune-patterns '(".git"
+                                    ".svn"
+                                    ".hg"
+                                    "node_modules"
+                                    "bower_components"
+                                    ".DS_Store"
+                                    ".cvs"
+                                    "TAGS"
+                                    "GTAGS"
+                                    "GPATH"
+                                    "GRTAGS"
+                                    "*flymake"
+                                    "*.class"
+                                    "*.war"
+                                    "*.jar"
+                                    "#*#"
+                                    "*.swp"
+                                    "*~"
+                                    "*.pyc"
+                                    "*.elc"
+                                    "*min.js"
+                                    "*min.css"))
 ;; }}
 
 ;; cmake
@@ -116,19 +44,11 @@
   (interactive)
   (switch-to-buffer nil))
 
-;; {{ dictionary setup
-(autoload 'dictionary-new-search "dictionary" "" t nil)
-(defun my-lookup-dict-org ()
+(defun my-lookup-dictionary ()
   (interactive)
   (dictionary-new-search (cons (if (region-active-p)
                                    (buffer-substring-no-properties (region-beginning) (region-end))
                                  (thing-at-point 'symbol)) dictionary-default-dictionary)))
-
-;; }}
-
-(defun insert-lorem ()
-  (interactive)
-  (insert "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque sem mauris, aliquam vel interdum in, faucibus non libero. Asunt in anim uis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in anim id est laborum. Allamco laboris nisi ut aliquip ex ea commodo consequat."))
 
 (defun my-gud-gdb ()
   (interactive)
@@ -142,8 +62,11 @@
   (interactive)
   (man (concat "-k " (thing-at-point 'symbol))))
 
+(defun magit-show-head-commit ()
+  (interactive)
+  (magit-show-commit "HEAD"))
+
 ;; {{ swiper
-(autoload 'swiper "swiper" "" t)
 (defun swiper-the-thing ()
   (interactive)
   (swiper (if (region-active-p)
@@ -160,37 +83,25 @@
 
 ;; {{ guide-key-mode
 (require 'guide-key)
-(setq guide-key/guide-key-sequence
-      '("C-x v" ; VCS commands
-        "C-c"
-        ",a"
-        ",b"
-        ",c"
-        ",d"
-        ",e"
-        ",f"
-        ",g"
-        ",h"
-        ",i"
-        ",j"
-        ",k"
-        ",l"
-        ",m"
-        ",n"
-        ",o"
-        ",p"
-        ",q"
-        ",r"
-        ",s"
-        ",t"
-        ",u"
-        ",v"
-        ",w"
-        ",x"
-        ",y"
-        ",z"))
+(setq guide-key/guide-key-sequence '
+      ("C-x v"
+       ",a" ",b" ",c" ",d"
+       ",e" ",ep"
+       ",f"
+       ",g" ",gs"
+       ",h" ",hs"
+       ",i" ",j" ",jd" ",jt"
+       ",k" ",l"
+       ",m" ",mg"
+       ",o" ",p" ",q"
+       ",r" ",rn"
+       ",s" ",t" ",tu" ",tf"
+       ",u" ",ul"
+       ",v"
+	   ",x" ",xn" ",xv"
+	   ",y"
+	   ",z" ",zw"))
 (guide-key-mode 1)  ; Enable guide-key-mode
-(setq guide-key/recursive-key-sequence-flag t)
 (setq guide-key/idle-delay 0.5)
 ;; }}
 
@@ -205,29 +116,21 @@
   (define-key global-map (kbd "C-M-@") 'er/contract-region))
 ;; }}
 
-(defun generic-prog-mode-hook-setup ()
-  (unless (is-buffer-file-temp)
-	;; highlight FIXME/BUG/TODO in comment
-	(require 'fic-mode)
-	(fic-mode 1)
-	;; enable for all programming modes
-	;; http://emacsredux.com/blog/2013/04/21/camelcase-aware-editing/
-	(subword-mode)
-	(electric-pair-mode 1)
-	;; eldoc, show API doc in minibuffer echo area
-	(turn-on-eldoc-mode)
-	;; show trailing spaces in a programming mod
-	(setq show-trailing-whitespace t)
-	))
-
-(add-hook 'prog-mode-hook 'generic-prog-mode-hook-setup)
-
-;; {{ display long lines in truncated style (end line with $)
-(defun truncate-lines-setup ()
-  (toggle-truncate-lines 1))
-(add-hook 'grep-mode-hook 'truncate-lines-setup)
-;; (add-hook 'org-mode-hook 'truncate-lines-setup)
-;; }}
+(add-hook 'prog-mode-hook
+          '(lambda ()
+             (unless (is-buffer-file-temp)
+               ;; highlight FIXME/BUG/TODO in comment
+               (require 'fic-mode)
+               (fic-mode 1)
+               ;; enable for all programming modes
+               ;; http://emacsredux.com/blog/2013/04/21/camelcase-aware-editing/
+               (subword-mode)
+               (if *emacs24* (electric-pair-mode 1))
+               ;; eldoc, show API doc in minibuffer echo area
+               (turn-on-eldoc-mode)
+               ;; show trailing spaces in a programming mod
+               (setq show-trailing-whitespace t)
+               )))
 
 ;; turns on auto-fill-mode, don't use text-mode-hook because for some
 ;; mode (org-mode for example), this will make the exported document
@@ -240,8 +143,6 @@
 ;; some project prefer tab, so be it
 ;; @see http://stackoverflow.com/questions/69934/set-4-space-indent-in-emacs-in-text-mode
 (setq-default tab-width 4)
-
-(setq history-delete-duplicates t)
 
 ;;----------------------------------------------------------------------------
 (fset 'yes-or-no-p 'y-or-n-p)
@@ -265,6 +166,13 @@
 ;effective emacs item 7; no scrollbar, no menubar, no toolbar
 (if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
 (if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+
+
+(eval-after-load 'speedbar
+  '(if (load "mwheel" t)
+       ;; Enable wheelmouse support by default
+       (cond (window-system
+              (mwheel-install)))))
 
 ;; {{ @see http://emacsredux.com/blog/2013/04/21/edit-files-as-root/
 (defun sudo-edit (&optional arg)
@@ -352,13 +260,7 @@ buffer is not visiting a file."
 (autoload 'vimrc-mode "vimrc-mode")
 (add-to-list 'auto-mode-alist '("\\.?vim\\(rc\\)?$" . vimrc-mode))
 
-;; {{ https://github.com/nschum/highlight-symbol.el
-(autoload 'highlight-symbol "highlight-symbol" "" t)
-(autoload 'highlight-symbol-next "highlight-symbol" "" t)
-(autoload 'highlight-symbol-prev "highlight-symbol" "" t)
-(autoload 'highlight-symbol-nav-mode "highlight-symbol" "" t)
-(autoload 'highlight-symbol-query-replace "highlight-symbol" "" t)
-;; }}
+(autoload 'highlight-symbol-at-point "highlight-symbol" "" t)
 
 ;; {{ show email sent by `git send-email' in gnus
 (eval-after-load 'gnus
@@ -406,43 +308,15 @@ buffer is not visiting a file."
                         "/home/[a-z]\+/\\."))
 ;; }}
 
-;; {{ popup functions
+;; {{ which-func
 (autoload 'which-function "which-func")
 (autoload 'popup-tip "popup")
-
-(defun my-which-function ()
-  ;; clean the imenu cache
-  ;; @see http://stackoverflow.com/questions/13426564/how-to-force-a-rescan-in-imenu-by-a-function
-  (setq imenu--index-alist nil)
-  (which-function))
-
 (defun popup-which-function ()
   (interactive)
-  (let ((msg (my-which-function)))
+  (let ((msg (which-function)))
     (popup-tip msg)
-    (copy-yank-str msg)))
-;; }}
-
-;; {{ music
-(defun mpc-which-song ()
-  (interactive)
-  (let ((msg (car (split-string (shell-command-to-string "mpc") "\n+"))))
-    (message msg)
-    (copy-yank-str msg)))
-
-(defun mpc-next-prev-song (&optional prev)
-  (interactive)
-  (message (car (split-string (shell-command-to-string
-                               (concat "mpc " (if prev "prev" "next"))) "\n+"))))
-(defun lyrics()
-  "Prints the lyrics for the current song"
-  (interactive)
-  (let ((song (shell-command-to-string "lyrics")))
-    (if (equal song "")
-        (message "No lyrics - Opening browser.")
-      (switch-to-buffer (create-file-buffer "Lyrics"))
-      (insert song)
-      (goto-line 0))))
+    (copy-yank-str msg)
+    ))
 ;; }}
 
 ;; @see http://www.emacswiki.org/emacs/EasyPG#toc4
@@ -454,66 +328,15 @@ buffer is not visiting a file."
     ad-do-it
     (setenv "GPG_AGENT_INFO" agent)))
 
-;; https://github.com/abo-abo/ace-window
-;; `M-x ace-window ENTER m` to swap window
-(global-set-key (kbd "C-x o") 'ace-window)
+;; @see http://emacs.stackexchange.com/questions/3322/python-auto-indent-problem/3338#3338
+(if (fboundp 'electric-indent-mode) (electric-indent-mode -1))
 
-;; {{ move focus between sub-windows
+;; http://tapoueh.org/emacs/switch-window.html
+(global-set-key (kbd "C-x o") 'switch-window)
+
+;; move window
 (require 'window-numbering)
 (custom-set-faces '(window-numbering-face ((t (:foreground "DeepPink" :underline "DeepPink" :weight bold)))))
 (window-numbering-mode 1)
-;; }}
 
-;; {{ avy, jump between texts, like easymotion in vim
-;; @see http://emacsredux.com/blog/2015/07/19/ace-jump-mode-is-dead-long-live-avy/ for more tips
-;; emacs key binding, copied from avy website
-(global-set-key (kbd "C-:") 'avy-goto-char)
-;; evil, my favorite
-(eval-after-load "evil"
-  '(progn
-     ;; press "d " to delete to the word
-     (define-key evil-motion-state-map (kbd "SPC") #'avy-goto-subword-1)
-     (define-key evil-normal-state-map (kbd "SPC") 'avy-goto-subword-1)))
-;; dired
-(eval-after-load "dired"
-  '(progn
-     (define-key dired-mode-map (kbd "SPC") 'avy-goto-subword-1)))
-;; }}
-
-;; {{ @see http://emacs.stackexchange.com/questions/14129/which-keyboard-shortcut-to-use-for-navigating-out-of-a-string
-(defun font-face-is-similar (f1 f2)
-  (let (rlt)
-    ;; (message "f1=%s f2=%s" f1 f2)
-    ;; in emacs-lisp-mode, the '^' from "^abde" has list of faces:
-    ;;   (font-lock-negation-char-face font-lock-string-face)
-    (if (listp f1) (setq f1 (nth 1 f1)))
-    (if (listp f2) (setq f2 (nth 1 f2)))
-
-    (if (eq f1 f2) (setq rlt t)
-      ;; C++ comment has different font face for limit and content
-      ;; f1 or f2 could be a function object because of rainbow mode
-      (if (and (string-match "-comment-" (format "%s" f1)) (string-match "-comment-" (format "%s" f2)))
-          (setq rlt t)))
-    rlt))
-
-(defun goto-edge-by-comparing-font-face (&optional step)
-"Goto either the begin or end of string/comment/whatever.
-If step is -1, go backward."
-  (interactive "P")
-  (let ((cf (get-text-property (point) 'face))
-        (p (point))
-        rlt
-        found
-        end)
-    (unless step (setq step 1)) ;default value
-    (setq end (if (> step 0) (point-max) (point-min)))
-    (while (and (not found) (not (= end p)))
-      (if (not (font-face-is-similar (get-text-property p 'face) cf))
-          (setq found t)
-        (setq p (+ p step))))
-    (if found (setq rlt (- p step))
-      (setq rlt p))
-    ;; (message "rlt=%s found=%s" rlt found)
-    (goto-char rlt)))
-;; }}
 (provide 'init-misc)

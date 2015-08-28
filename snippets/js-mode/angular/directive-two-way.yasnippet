@@ -1,24 +1,23 @@
 # -*- coding: utf-8; mode: snippet -*-
-# name: two way binding <div ng-model="..." input-currency />
+# name: two way binding <div ng-model="..." directiveName />
 # key: adirective
 # contributor: Chen Bin <chenbin DOT sh AT gmail>
 # --
-.directive('${1:inputCurrency}', function($filter) {
+${1:app}.directive('${2:prefixDirectiveId}', function() {
   return {
-    restrict: 'A', // A - attribute, E - element/name, C - attribute/name
+    restrict: 'A', // A - match attribute, E - match element name, C, match attribute name
     require: 'ngModel',
-    link: function(scope, element, attr, ctrl) {
+    link: function(scope, element, attr, ngModel) {
       var elementFocused;
       var forceDataBinding = function(ctrl) {
-        var value = ctrl.$modelValue, formatters = ctrl.$formatters, idx;
-        if(!value) {
-            // because user input invalid data, we'd better not update the view
-            return;
-        }
+        var value = ctrl.$modelValue;
+        var formatters = ctrl.$formatters,
         idx = formatters.length;
+
         while(idx--) {
           value = formatters[idx](value);
         }
+
         if (ctrl.$viewValue !== value) {
           ctrl.$viewValue = value;
           ctrl.$render();
@@ -26,33 +25,21 @@
       };
       element.on('focus', function () {
         elementFocused = true;
-        forceDataBinding(ctrl);
+        forceDataBinding(ngModel);
       });
       element.on('blur', function () {
         elementFocused = false;
-        forceDataBinding(ctrl);
+        forceDataBinding(ngModel);
       });
-      // or ctrl.$parsers.unshift(...)
-      ctrl.$parsers.push(function (origVal) {
-        if (origVal === undefined || origVal === '') return origVal;
-        // you can only input digits here
-        var transformedInput = origVal.replace(/[^0-9]/g, '');
-        if (transformedInput !== origVal) {
-          // force update the view
-          ctrl.$setViewValue(transformedInput);
-          ctrl.$render();
-        }
-        origVal = transformedInput;
+      ngModel.$parsers.push(function (v) {
+        $0
         // from user input
-        return origVal;
+        return v;
       });
-      ctrl.$formatters.push(function (origVal) {
-        // to user display
-        if(elementFocused === true) {
-          return origVal;
-        }
-        return  $filter('currency')(origVal,'');
+      ngModel.$formatters.push(function (v) {
+        // to user input
+        return v;
       });
     }
   };
-})
+});
