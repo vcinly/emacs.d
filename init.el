@@ -193,7 +193,7 @@
 (put 'erase-buffer 'disabled nil)
 
 ;; This gives you a tab of 2 spaces
-
+(custom-set-variables '(coffee-tab-width 2))
 
 ;;;;;;;;;;;;;;;;
 ;; add github load-path
@@ -277,7 +277,6 @@
 (add-hook 'scheme-mode-hook
   (lambda ()
     (paredit-mode 1)
-    (rainbow-delimiters-mode t)
     (define-key scheme-mode-map (kbd "C-x C-e") 'scheme-send-last-sexp-split-window)
     (define-key scheme-mode-map (kbd "<f6>") 'scheme-send-definition-split-window)))
 
@@ -302,5 +301,3 @@
 (add-to-list 'auto-mode-alist '("\\.beancount\\'" . beancount-mode))
 (add-to-list 'auto-mode-alist '("\\.bean\\'" . beancount-mode))
 (setq css-indent-offset 2)
-
-
