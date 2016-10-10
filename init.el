@@ -1,4 +1,11 @@
 ;; -*- coding: utf-8 -*-
+
+;; Added by Package.el.  This must come before configurations of
+;; installed packages.  Don't delete this line.  If you don't want it,
+;; just comment it out by adding a semicolon to the start of the line.
+;; You may delete these explanatory comments.
+(package-initialize)
+
 (setq emacs-load-start-time (current-time))
 (add-to-list 'load-path (expand-file-name "~/.emacs.d/lisp"))
 
@@ -99,7 +106,7 @@
 (require 'init-moz)
 (require 'init-gtags)
 ;; use evil mode (vi key binding)
-(require 'init-evil)
+;; (require 'init-evil)
 (require 'init-sh)
 (require 'init-ctags)
 (require 'init-ace-jump-mode)
@@ -157,7 +164,22 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(safe-local-variable-values (quote ((lentic-init . lentic-orgel-org-init))))
+ '(cfs--current-profile "profile1" t)
+ '(cfs--profiles-steps (quote (("profile1" . 5))) t)
+ '(coffee-tab-width 2)
+ '(git-gutter:handled-backends (quote (svn hg git)))
+ '(package-selected-packages
+   (quote
+    (## jade-mode youdao-dictionary yasnippet yaml-mode yagist writeroom-mode wgrep w3m unfill textile-mode tagedit switch-window swiper string-edit sr-speedbar session scss-mode scratch sass-mode rvm robe rinari regex-tool rainbow-delimiters quack pomodoro pointback paredit page-break-lines mwe-log-commands multiple-cursors multi-term move-text minitest mic-paren markdown-mode magit lua-mode link less-css-mode legalese json-mode js2-mode idomenu ibuffer-vc htmlize hl-sexp haskell-mode guide-key gitignore-mode gitconfig-mode git-timemachine git-gutter ggtags fringe-helper flyspell-lazy flymake-sass flymake-ruby flymake-python-pyflakes flymake-lua flymake-jslint flymake-css flymake-coffee flx-ido expand-region exec-path-from-shell erlang emmet-mode elnode dsvn dropdown-list dired-details dired+ diminish dictionary csharp-mode crontab-mode cpputils-cmake connection company-c-headers company-anaconda color-theme coffee-mode cmake-mode buffer-move bookmark+ bbdb auto-compile ag ace-jump-mode)))
+ '(safe-local-variable-values
+   (quote
+    ((encoding . utf-8)
+     (ruby-compilation-executable . "ruby")
+     (ruby-compilation-executable . "ruby1.8")
+     (ruby-compilation-executable . "ruby1.9")
+     (ruby-compilation-executable . "rbx")
+     (ruby-compilation-executable . "jruby")
+     (lentic-init . lentic-orgel-org-init))))
  '(session-use-package t nil (session)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
@@ -169,3 +191,116 @@
 ;;; no-byte-compile: t
 ;;; End:
 (put 'erase-buffer 'disabled nil)
+
+;; This gives you a tab of 2 spaces
+
+
+;;;;;;;;;;;;;;;;
+;; add github load-path
+;;;;;;;;;;;;;;;;
+
+;; (add-to-list 'load-path "~/.emacs.d/github"
+;;              (normal-top-level-add-subdirs-to-load-path))
+
+(add-to-list 'load-path "~/.emacs.d/github")
+(progn (cd "~/.emacs.d/github")
+       (normal-top-level-add-subdirs-to-load-path))
+
+;(add-to-list 'load-path "~/.emacs.d/emacs-color-theme-solarized/")
+(require 'color-theme-solarized)
+(color-theme-solarized-dark)
+
+;(add-to-list 'load-path "~/.emacs.d/undo-tree/")
+(require 'undo-tree)
+(global-undo-tree-mode)
+
+;;ruby-electric-mode
+;; (require 'ruby-electric)
+;; (eval-after-load "ruby-mode"
+;;   '(add-hook 'ruby-mode-hook 'ruby-electric-mode))
+
+
+;;;ParEdit mode
+(autoload 'paredit-mode "paredit"
+  "Minor mode for pseudo-structurally editing Lisp code."
+  t)
+
+;;;;;;;;;;;;
+;; Scheme
+;;;;;;;;;;;;
+
+(require 'cmuscheme)
+(setq scheme-program-name "racket")         ;; 如果用 Petite 就改成 "petite"
+;; (setq scheme-program-name "petite")         ;; 如果用 Petite 就改成 "petite"
+
+
+;; bypass the interactive question and start the default interpreter
+(defun scheme-proc ()
+  "Return the current Scheme process, starting one if necessary."
+  (unless (and scheme-buffer
+               (get-buffer scheme-buffer)
+               (comint-check-proc scheme-buffer))
+    (save-window-excursion
+      (run-scheme scheme-program-name)))
+  (or (scheme-get-process)
+      (error "No current process. See variable `scheme-buffer'")))
+
+
+(defun scheme-split-window ()
+  (cond
+   ((= 1 (count-windows))
+    (delete-other-windows)
+    (split-window-vertically (floor (* 0.68 (window-height))))
+    (other-window 1)
+    (switch-to-buffer "*scheme*")
+    (other-window 1))
+   ((not (find "*scheme*"
+               (mapcar (lambda (w) (buffer-name (window-buffer w)))
+                       (window-list))
+               :test 'equal))
+    (other-window 1)
+    (switch-to-buffer "*scheme*")
+    (other-window -1))))
+
+
+(defun scheme-send-last-sexp-split-window ()
+  (interactive)
+  (scheme-split-window)
+  (scheme-send-last-sexp))
+
+
+(defun scheme-send-definition-split-window ()
+  (interactive)
+  (scheme-split-window)
+  (scheme-send-definition))
+
+(add-hook 'scheme-mode-hook
+  (lambda ()
+    (paredit-mode 1)
+    (rainbow-delimiters-mode t)
+    (define-key scheme-mode-map (kbd "C-x C-e") 'scheme-send-last-sexp-split-window)
+    (define-key scheme-mode-map (kbd "<f6>") 'scheme-send-definition-split-window)))
+
+;; scheme parentheses face
+(require 'paren-face)
+(set-face-foreground 'parenthesis "DimGray")
+
+(setq semantic-idle-scheduler-idle-time 432000)
+
+;; 设置字体
+;; (set-fontset-font "fontset-default" 'han '("STHeiti"))
+;; (set-default-font "Monaco 12")
+;;  (set-fontset-font
+;;    (frame-parameter nil 'font)
+;;    'han
+;;    (font-spec :family"WenQuanYi Micro Hei Mono":size 12))
+(require 'chinese-fonts-setup)
+
+
+;; about beancount
+(require 'beancount)
+(add-to-list 'auto-mode-alist '("\\.beancount\\'" . beancount-mode))
+(add-to-list 'auto-mode-alist '("\\.bean\\'" . beancount-mode))
+(setq css-indent-offset 2)
+
+
